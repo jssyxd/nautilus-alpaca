@@ -1,3 +1,4 @@
+import nautilus_trader.adapters.alpaca.compat  # noqa: F401
 # -------------------------------------------------------------------------------------------------
 #  Copyright (C) 2015-2025 Nautech Systems Pty Ltd. All rights reserved.
 #  https://nautechsystems.io
