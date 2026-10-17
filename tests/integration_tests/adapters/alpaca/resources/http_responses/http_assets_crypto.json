@@ -1,0 +1,34 @@
+[
+  {
+    "id": "276e2673-764b-4ab6-a611-caf665ca6340",
+    "class": "crypto",
+    "exchange": "CRYPTO",
+    "symbol": "BTCUSD",
+    "name": "Bitcoin",
+    "status": "active",
+    "tradable": true,
+    "marginable": false,
+    "shortable": false,
+    "easy_to_borrow": false,
+    "fractionable": true,
+    "min_order_size": "0.0001",
+    "min_trade_increment": "0.0001",
+    "price_increment": "1"
+  },
+  {
+    "id": "8f3e3c98-c1a2-41f5-a8d7-24f8b4c6e8d1",
+    "class": "crypto",
+    "exchange": "CRYPTO",
+    "symbol": "ETHUSD",
+    "name": "Ethereum",
+    "status": "active",
+    "tradable": true,
+    "marginable": false,
+    "shortable": false,
+    "easy_to_borrow": false,
+    "fractionable": true,
+    "min_order_size": "0.001",
+    "min_trade_increment": "0.001",
+    "price_increment": "0.01"
+  }
+]
