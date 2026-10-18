@@ -353,12 +353,14 @@ class AlpacaMatrixLiveRunner:
         logger.info("Trade Updates WebSocket connected and listening...")
 
         # 5. Connect Market Data WebSocket
+        feed = "iex" if self.paper_trading else "sip"
+        market_data_url = f"wss://stream.data.alpaca.markets/v2/{feed}"
         equity_symbols = [t.symbol for t in TARGET_MATRIX if t.asset_class == "EQUITY"]
         self.data_ws = AlpacaMarketDataWebSocketClient(
+            url=market_data_url,
             api_key=self.api_key,
             api_secret=self.api_secret,
-            data_feed="iex" if self.paper_trading else "sip",
-            on_message=self._handle_market_data,
+            on_data_message=self._handle_market_data,
         )
         await self.data_ws.connect()
         await self.data_ws.subscribe(bars=equity_symbols)
