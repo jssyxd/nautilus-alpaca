@@ -54,3 +54,17 @@ if "nautilus_trader.cache.cache" not in sys.modules:
         setattr(cache_parent, "cache", cache_sub)
         sys.modules["nautilus_trader.cache"] = cache_parent
         sys.modules["nautilus_trader.cache.cache"] = cache_sub
+
+
+# Component module moved into nautilus_trader.common in 2.0
+if "nautilus_trader.common.component" not in sys.modules:
+    try:
+        import nautilus_trader.common.component
+    except ImportError:
+        import nautilus_trader.common as common_mod
+        comp_sub = types.ModuleType("nautilus_trader.common.component")
+        setattr(comp_sub, "LiveClock", getattr(common_mod, "Clock", object))
+        setattr(comp_sub, "MessageBus", getattr(common_mod, "MessageBus", object))
+        setattr(comp_sub, "Logger", getattr(common_mod, "Logger", object))
+        setattr(common_mod, "component", comp_sub)
+        sys.modules["nautilus_trader.common.component"] = comp_sub
