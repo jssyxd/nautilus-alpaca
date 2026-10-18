@@ -29,7 +29,10 @@ import nautilus_trader.adapters
 sys.path.insert(0, "/opt/nautilus_alpaca/adapter_repo")
 nautilus_trader.adapters.__path__.append("/opt/nautilus_alpaca/adapter_repo/nautilus_trader/adapters")
 
-from nautilus_trader.trading.strategy import Strategy
+try:
+    from nautilus_trader.trading.strategy import Strategy
+except ImportError:
+    from nautilus_trader.trading import Strategy
 from nautilus_trader.config import StrategyConfig
 from nautilus_trader.model.data import Bar, BarType, BarSpecification
 from nautilus_trader.model.enums import BarAggregation, PriceType, OrderSide, TimeInForce
