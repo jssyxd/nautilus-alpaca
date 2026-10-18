@@ -107,3 +107,20 @@ if "nautilus_trader.data.messages" not in sys.modules:
         setattr(data_parent, "messages", msg_sub)
         sys.modules["nautilus_trader.data"] = data_parent
         sys.modules["nautilus_trader.data.messages"] = msg_sub
+
+
+# In Nautilus 2.0, Rust actors replace Python LiveMarketDataClient / LiveExecutionClient base classes
+for mod_name, class_name in [
+    ("nautilus_trader.live.data_client", "LiveMarketDataClient"),
+    ("nautilus_trader.live.execution_client", "LiveExecutionClient"),
+]:
+    if mod_name not in sys.modules:
+        try:
+            __import__(mod_name)
+        except ImportError:
+            sub = types.ModuleType(mod_name)
+            class MockClientBase:
+                def __init__(self, *args, **kwargs):
+                    pass
+            setattr(sub, class_name, MockClientBase)
+            sys.modules[mod_name] = sub
