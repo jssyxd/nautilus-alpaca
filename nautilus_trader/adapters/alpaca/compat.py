@@ -68,3 +68,17 @@ if "nautilus_trader.common.component" not in sys.modules:
         setattr(comp_sub, "Logger", getattr(common_mod, "Logger", object))
         setattr(common_mod, "component", comp_sub)
         sys.modules["nautilus_trader.common.component"] = comp_sub
+
+
+# common.enums moved into common in 2.0
+if "nautilus_trader.common.enums" not in sys.modules:
+    try:
+        import nautilus_trader.common.enums
+    except ImportError:
+        import nautilus_trader.common as common_mod
+        enums_sub = types.ModuleType("nautilus_trader.common.enums")
+        for attr in ["LogColor", "LogLevel", "LogFormat"]:
+            if hasattr(common_mod, attr):
+                setattr(enums_sub, attr, getattr(common_mod, attr))
+        setattr(common_mod, "enums", enums_sub)
+        sys.modules["nautilus_trader.common.enums"] = enums_sub
