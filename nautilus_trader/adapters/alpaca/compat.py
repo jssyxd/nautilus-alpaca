@@ -82,3 +82,19 @@ if "nautilus_trader.common.enums" not in sys.modules:
                 setattr(enums_sub, attr, getattr(common_mod, attr))
         setattr(common_mod, "enums", enums_sub)
         sys.modules["nautilus_trader.common.enums"] = enums_sub
+
+
+# data.messages moved into live in 2.0
+if "nautilus_trader.data.messages" not in sys.modules:
+    try:
+        import nautilus_trader.data.messages
+    except ImportError:
+        import nautilus_trader.live as live_mod
+        data_parent = types.ModuleType("nautilus_trader.data")
+        msg_sub = types.ModuleType("nautilus_trader.data.messages")
+        for attr in dir(live_mod):
+            if attr.startswith(("Request", "Subscribe", "Unsubscribe")):
+                setattr(msg_sub, attr, getattr(live_mod, attr))
+        setattr(data_parent, "messages", msg_sub)
+        sys.modules["nautilus_trader.data"] = data_parent
+        sys.modules["nautilus_trader.data.messages"] = msg_sub
