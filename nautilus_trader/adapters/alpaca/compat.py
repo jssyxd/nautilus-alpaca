@@ -124,3 +124,15 @@ for mod_name, class_name in [
                     pass
             setattr(sub, class_name, MockClientBase)
             sys.modules[mod_name] = sub
+
+
+# UUID4 moved into nautilus_trader.core in 2.0
+if "nautilus_trader.core.uuid" not in sys.modules:
+    try:
+        import nautilus_trader.core.uuid
+    except ImportError:
+        import nautilus_trader.core as core_mod
+        uuid_sub = types.ModuleType("nautilus_trader.core.uuid")
+        setattr(uuid_sub, "UUID4", getattr(core_mod, "UUID4", object))
+        setattr(core_mod, "uuid", uuid_sub)
+        sys.modules["nautilus_trader.core.uuid"] = uuid_sub
