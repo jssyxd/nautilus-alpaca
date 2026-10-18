@@ -24,3 +24,19 @@ if not hasattr(c, "LiveDataClientConfig"):
 if not hasattr(c, "LiveExecClientConfig"):
     import nautilus_trader.live as l
     setattr(c, "LiveExecClientConfig", getattr(l, "ExecutionClientConfig", object))
+
+
+# In Nautilus 2.0, currencies are dynamic Currency instances created via Currency.from_str
+if not hasattr(sys.modules.get("nautilus_trader.model.currencies", object()), "USD"):
+    mod_curr = sys.modules.get("nautilus_trader.model.currencies")
+    if mod_curr is not None:
+        curr_fn = getattr(m, "Currency", None)
+        if curr_fn:
+            class CurrencyProxy:
+                def __getattr__(self, name):
+                    return curr_fn.from_str(name)
+            for c_name in ["USD", "BTC", "ETH", "USDT", "EUR", "GBP", "JPY"]:
+                try:
+                    setattr(mod_curr, c_name, curr_fn.from_str(c_name))
+                except Exception:
+                    pass
