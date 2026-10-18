@@ -289,6 +289,7 @@ class AlpacaMatrixLiveRunner:
         self.http_client: Optional[AlpacaHttpClient] = None
         self.trade_ws: Optional[AlpacaTradeUpdatesWebSocketClient] = None
         self.data_ws: Optional[AlpacaMarketDataWebSocketClient] = None
+        self.crypto_ws: Optional[AlpacaMarketDataWebSocketClient] = None
 
         self.strategy: Optional[IntraBarMatrixStrategy] = None
         self.is_running: bool = False
@@ -352,7 +353,7 @@ class AlpacaMatrixLiveRunner:
         await self.trade_ws.connect()
         logger.info("Trade Updates WebSocket connected and listening...")
 
-        # 5. Connect Market Data WebSocket
+        # 5. Connect Equity Market Data WebSocket (Stocks/ETFs)
         feed = "iex" if self.paper_trading else "sip"
         market_data_url = f"wss://stream.data.alpaca.markets/v2/{feed}"
         equity_symbols = [t.symbol for t in TARGET_MATRIX if t.asset_class == "EQUITY"]
@@ -364,9 +365,26 @@ class AlpacaMatrixLiveRunner:
         )
         await self.data_ws.connect()
         await self.data_ws.subscribe(bars=equity_symbols)
-        logger.info(f"Market Data WebSocket connected. Subscribed minute bars for: {equity_symbols}")
+        logger.info(f"Equity Market Data WS connected. Subscribed minute bars for: {equity_symbols}")
 
-        logger.info("Node fully operational. Entering asynchronous event processing loop...")
+        # 6. Connect Crypto Market Data WebSocket (24/7 Live Stream)
+        crypto_symbols = [t.symbol for t in TARGET_MATRIX if t.asset_class == "CRYPTO"]
+        if crypto_symbols:
+            crypto_data_url = "wss://stream.data.alpaca.markets/v1beta3/crypto/us"
+            self.crypto_ws = AlpacaMarketDataWebSocketClient(
+                url=crypto_data_url,
+                api_key=self.api_key,
+                api_secret=self.api_secret,
+                on_data_message=self._handle_market_data,
+            )
+            await self.crypto_ws.connect()
+            await self.crypto_ws.subscribe(bars=crypto_symbols)
+            logger.info(f"Crypto Market Data WS connected (24/7). Subscribed minute bars for: {crypto_symbols}")
+
+        # 7. Pre-warm K-lines via REST for instant signal readiness
+        await self._preload_historical_bars()
+
+        logger.info("Node fully operational with 24/7 Crypto + Equity streams. Entering event loop...")
         while self.is_running:
             await asyncio.sleep(1.0)
 
@@ -498,6 +516,43 @@ class AlpacaMatrixLiveRunner:
         except Exception as e:
             logger.error(f"Failed to close position for {symbol}: {e}")
 
+    async def _preload_historical_bars(self):
+        """Pre-warms historical macro bars via REST so signals can trigger immediately without waiting 20+ hours."""
+        logger.info("🔄 Pre-warming historical bars for all 5 targets via REST API...")
+        for target in TARGET_MATRIX:
+            sym = target.symbol
+            try:
+                if target.asset_class == "CRYPTO":
+                    endpoint = f"/v1beta3/crypto/us/bars?symbols={sym}&timeframe=1Hour&limit=30"
+                    raw = await self.http_client.get(endpoint, use_data_api=True)
+                    data = msgspec.json.decode(raw)
+                    bars_data = data.get("bars", {}).get(sym, [])
+                else:
+                    endpoint = f"/v2/stocks/bars?symbols={sym}&timeframe=1Day&limit=30"
+                    raw = await self.http_client.get(endpoint, use_data_api=True)
+                    data = msgspec.json.decode(raw)
+                    bars_data = data.get("bars", {}).get(sym, [])
+
+                if bars_data:
+                    inst_id = InstrumentId(Symbol(sym), ALPACA_VENUE)
+                    spec = BarSpecification(target.step, target.aggregation, PriceType.LAST)
+                    b_type = BarType(inst_id, spec)
+                    for b in bars_data:
+                        bar = Bar(
+                            bar_type=b_type,
+                            open=Price.from_str(f"{float(b['o']):.2f}"),
+                            high=Price.from_str(f"{float(b['h']):.2f}"),
+                            low=Price.from_str(f"{float(b['l']):.2f}"),
+                            close=Price.from_str(f"{float(b['c']):.2f}"),
+                            volume=Quantity.from_int(int(b.get("v", 0))),
+                            ts_event=0,
+                            ts_init=0,
+                        )
+                        self.strategy.history_bars[sym].append(bar)
+                    logger.info(f"  ✓ Pre-warmed {len(bars_data)} historical bars for [{target.name}] {sym} (History size: {len(self.strategy.history_bars[sym])})")
+            except Exception as e:
+                logger.warning(f"  ⚠ Failed to pre-warm historical bars for {sym}: {e}")
+
     async def stop(self):
         logger.info("Stopping Alpaca IntraBar Matrix Trading Node...")
         self.is_running = False
@@ -505,6 +560,8 @@ class AlpacaMatrixLiveRunner:
             await self.trade_ws.disconnect()
         if self.data_ws:
             await self.data_ws.disconnect()
+        if self.crypto_ws:
+            await self.crypto_ws.disconnect()
         if self.http_client:
             await self.http_client.close()
         logger.info("Node shut down cleanly.")
