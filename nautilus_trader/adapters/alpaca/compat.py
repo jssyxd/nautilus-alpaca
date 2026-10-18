@@ -167,3 +167,18 @@ if "nautilus_trader.execution.reports" not in sys.modules:
         setattr(exec_parent, "reports", rep_sub)
         sys.modules["nautilus_trader.execution"] = exec_parent
         sys.modules["nautilus_trader.execution.reports"] = rep_sub
+
+
+# live.factories shim for 2.0
+if "nautilus_trader.live.factories" not in sys.modules:
+    try:
+        import nautilus_trader.live.factories
+    except ImportError:
+        live_parent = sys.modules.get("nautilus_trader.live", types.ModuleType("nautilus_trader.live"))
+        fact_sub = types.ModuleType("nautilus_trader.live.factories")
+        class MockFactoryBase:
+            pass
+        setattr(fact_sub, "LiveDataClientFactory", MockFactoryBase)
+        setattr(fact_sub, "LiveExecClientFactory", MockFactoryBase)
+        setattr(live_parent, "factories", fact_sub)
+        sys.modules["nautilus_trader.live.factories"] = fact_sub
