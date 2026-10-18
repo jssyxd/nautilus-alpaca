@@ -152,3 +152,18 @@ if "nautilus_trader.execution.messages" not in sys.modules:
         setattr(exec_parent, "messages", exec_msg_sub)
         sys.modules["nautilus_trader.execution"] = exec_parent
         sys.modules["nautilus_trader.execution.messages"] = exec_msg_sub
+
+
+# execution.reports moved into model in 2.0
+if "nautilus_trader.execution.reports" not in sys.modules:
+    try:
+        import nautilus_trader.execution.reports
+    except ImportError:
+        exec_parent = sys.modules.get("nautilus_trader.execution", types.ModuleType("nautilus_trader.execution"))
+        rep_sub = types.ModuleType("nautilus_trader.execution.reports")
+        for attr in ["FillReport", "OrderStatusReport", "PositionStatusReport"]:
+            if hasattr(m, attr):
+                setattr(rep_sub, attr, getattr(m, attr))
+        setattr(exec_parent, "reports", rep_sub)
+        sys.modules["nautilus_trader.execution"] = exec_parent
+        sys.modules["nautilus_trader.execution.reports"] = rep_sub
