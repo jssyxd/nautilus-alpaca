@@ -40,3 +40,17 @@ if not hasattr(sys.modules.get("nautilus_trader.model.currencies", object()), "U
                     setattr(mod_curr, c_name, curr_fn.from_str(c_name))
                 except Exception:
                     pass
+
+
+# Cache module moved into nautilus_trader.common in 2.0
+if "nautilus_trader.cache.cache" not in sys.modules:
+    try:
+        import nautilus_trader.cache.cache
+    except ImportError:
+        import nautilus_trader.common as common_mod
+        cache_sub = types.ModuleType("nautilus_trader.cache.cache")
+        cache_parent = types.ModuleType("nautilus_trader.cache")
+        setattr(cache_sub, "Cache", getattr(common_mod, "Cache", object))
+        setattr(cache_parent, "cache", cache_sub)
+        sys.modules["nautilus_trader.cache"] = cache_parent
+        sys.modules["nautilus_trader.cache.cache"] = cache_sub
