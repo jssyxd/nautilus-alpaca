@@ -43,7 +43,18 @@ except ImportError:
         from nautilus_trader.live import InstrumentProviderConfig
     except ImportError:
         InstrumentProviderConfig = object
-from nautilus_trader.core.correctness import PyCondition
+try:
+    from nautilus_trader.core.correctness import PyCondition
+except ImportError:
+    class PyCondition:
+        @staticmethod
+        def not_none(val, name="val"):
+            if val is None:
+                raise ValueError(f"{name} must not be None")
+        @staticmethod
+        def equal(a, b, msg=None):
+            if a != b:
+                raise ValueError(msg or f"{a} != {b}")
 from nautilus_trader.model.currencies import USD
 from nautilus_trader.model.enums import AssetClass
 from nautilus_trader.model.enums import OptionKind
