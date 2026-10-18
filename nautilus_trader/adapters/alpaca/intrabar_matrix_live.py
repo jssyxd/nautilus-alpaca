@@ -29,23 +29,12 @@ import nautilus_trader.adapters
 sys.path.insert(0, "/opt/nautilus_alpaca/adapter_repo")
 nautilus_trader.adapters.__path__.append("/opt/nautilus_alpaca/adapter_repo/nautilus_trader/adapters")
 
-from nautilus_trader.trading import Strategy, StrategyConfig
-from nautilus_trader.model import (
-    Bar,
-    BarType,
-    BarSpecification,
-    BarAggregation,
-    PriceType,
-    InstrumentId,
-    Symbol,
-    Venue,
-    OrderSide,
-    TimeInForce,
-    Price,
-    Quantity,
-    Currency,
-    Money,
-)
+from nautilus_trader.trading.strategy import Strategy
+from nautilus_trader.config import StrategyConfig
+from nautilus_trader.model.data import Bar, BarType, BarSpecification
+from nautilus_trader.model.enums import BarAggregation, PriceType, OrderSide, TimeInForce
+from nautilus_trader.model.identifiers import InstrumentId, Symbol, Venue
+from nautilus_trader.model.objects import Price, Quantity, Currency, Money
 from nautilus_trader.adapters.alpaca.common.constants import ALPACA_VENUE
 
 
@@ -53,17 +42,18 @@ from nautilus_trader.adapters.alpaca.common.constants import ALPACA_VENUE
 class TargetAssetRule:
     name: str
     symbol: str
-    timeframe: str  # "15m", "1h", "3h"
-    aggregation_minutes: int
+    timeframe: str
+    step: int
+    aggregation: BarAggregation
     asset_class: str # "EQUITY" or "CRYPTO"
 
 
 TARGET_MATRIX: List[TargetAssetRule] = [
-    TargetAssetRule(name="Silver", symbol="SLV", timeframe="15m", aggregation_minutes=15, asset_class="EQUITY"),
-    TargetAssetRule(name="ES", symbol="SPY", timeframe="15m", aggregation_minutes=15, asset_class="EQUITY"),
-    TargetAssetRule(name="Gold", symbol="GLD", timeframe="1h", aggregation_minutes=60, asset_class="EQUITY"),
-    TargetAssetRule(name="BTC", symbol="BTC/USD", timeframe="1h", aggregation_minutes=60, asset_class="CRYPTO"),
-    TargetAssetRule(name="NQ", symbol="QQQ", timeframe="3h", aggregation_minutes=180, asset_class="EQUITY"),
+    TargetAssetRule(name="Silver", symbol="SLV", timeframe="15m", step=15, aggregation=BarAggregation.MINUTE, asset_class="EQUITY"),
+    TargetAssetRule(name="ES", symbol="SPY", timeframe="15m", step=15, aggregation=BarAggregation.MINUTE, asset_class="EQUITY"),
+    TargetAssetRule(name="Gold", symbol="GLD", timeframe="1h", step=1, aggregation=BarAggregation.HOUR, asset_class="EQUITY"),
+    TargetAssetRule(name="BTC", symbol="BTC/USD", timeframe="1h", step=1, aggregation=BarAggregation.HOUR, asset_class="CRYPTO"),
+    TargetAssetRule(name="NQ", symbol="QQQ", timeframe="3h", step=3, aggregation=BarAggregation.HOUR, asset_class="EQUITY"),
 ]
 
 
@@ -121,7 +111,7 @@ class IntraBarMatrixStrategy(Strategy):
 
             # Subscribe target timeframe bar
             inst_id = InstrumentId(Symbol(sym), ALPACA_VENUE)
-            spec = BarSpecification(target.aggregation_minutes, BarAggregation.MINUTE, PriceType.LAST)
+            spec = BarSpecification(target.step, target.aggregation, PriceType.LAST)
             bar_type = BarType(inst_id, spec)
             self.subscribe_bars(bar_type)
             self.log.info(f"  [Matrix Armed] {target.name} ({sym}) on {target.timeframe} bar stream")

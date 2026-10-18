@@ -1,0 +1,69 @@
+services:
+  alpaca-trader:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    image: alpaca-nautilus-trader:latest
+    container_name: alpaca-nautilus-trader
+    restart: unless-stopped
+
+    # --------------------------------------------------------------------------
+    # Resource Limits & Memory Guard
+    # Target VPS: ~961MB total RAM with 2 existing containers.
+    # Strict 180MB RAM hard limit protects adjacent workloads from OOM.
+    # --------------------------------------------------------------------------
+    mem_limit: 180m
+    memswap_limit: 360m
+    mem_reservation: 64m
+    cpus: 0.75
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 180M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+      restart_policy:
+        condition: unless-stopped
+
+    # --------------------------------------------------------------------------
+    # Health Check
+    # Periodically checks memory consumption (< 175MB) and API connectivity
+    # --------------------------------------------------------------------------
+    healthcheck:
+      test: ["CMD", "python3", "/app/deployment/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # --------------------------------------------------------------------------
+    # Log Rotation (Protects VPS Disk from Unbounded Growth)
+    # Caps logs to 3 files of 10MB each (max 30MB total)
+    # --------------------------------------------------------------------------
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Graceful stop period to cancel open orders and close WebSockets safely
+    stop_grace_period: 30s
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+
+    # --------------------------------------------------------------------------
+    # Environment Variables
+    # Reads from host environment or ../.env with safe defaults
+    # --------------------------------------------------------------------------
+    environment:
+      - ALPACA_API_KEY=${ALPACA_API_KEY:-}
+      - ALPACA_API_SECRET=${ALPACA_API_SECRET:-}
+      - ALPACA_PAPER_TRADING=${ALPACA_PAPER_TRADING:-true}
+      - MALLOC_ARENA_MAX=2
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
