@@ -136,3 +136,19 @@ if "nautilus_trader.core.uuid" not in sys.modules:
         setattr(uuid_sub, "UUID4", getattr(core_mod, "UUID4", object))
         setattr(core_mod, "uuid", uuid_sub)
         sys.modules["nautilus_trader.core.uuid"] = uuid_sub
+
+
+# execution.messages moved into live in 2.0
+if "nautilus_trader.execution.messages" not in sys.modules:
+    try:
+        import nautilus_trader.execution.messages
+    except ImportError:
+        import nautilus_trader.live as live_mod
+        exec_parent = types.ModuleType("nautilus_trader.execution")
+        exec_msg_sub = types.ModuleType("nautilus_trader.execution.messages")
+        for attr in dir(live_mod):
+            if attr.startswith(("Batch", "Cancel", "Modify", "Query", "Submit", "Generate")):
+                setattr(exec_msg_sub, attr, getattr(live_mod, attr))
+        setattr(exec_parent, "messages", exec_msg_sub)
+        sys.modules["nautilus_trader.execution"] = exec_parent
+        sys.modules["nautilus_trader.execution.messages"] = exec_msg_sub
