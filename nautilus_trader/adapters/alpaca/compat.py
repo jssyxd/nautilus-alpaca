@@ -95,6 +95,15 @@ if "nautilus_trader.data.messages" not in sys.modules:
         for attr in dir(live_mod):
             if attr.startswith(("Request", "Subscribe", "Unsubscribe")):
                 setattr(msg_sub, attr, getattr(live_mod, attr))
+        # Alias renamed tick/orderbook messages in 2.0
+        setattr(msg_sub, "RequestQuoteTicks", getattr(live_mod, "RequestQuotes", object))
+        setattr(msg_sub, "RequestTradeTicks", getattr(live_mod, "RequestTrades", object))
+        setattr(msg_sub, "SubscribeQuoteTicks", getattr(live_mod, "SubscribeQuotes", object))
+        setattr(msg_sub, "SubscribeTradeTicks", getattr(live_mod, "SubscribeTrades", object))
+        setattr(msg_sub, "SubscribeOrderBook", getattr(live_mod, "SubscribeBookDeltas", object))
+        setattr(msg_sub, "UnsubscribeQuoteTicks", getattr(live_mod, "UnsubscribeQuotes", object))
+        setattr(msg_sub, "UnsubscribeTradeTicks", getattr(live_mod, "UnsubscribeTrades", object))
+        setattr(msg_sub, "UnsubscribeOrderBook", getattr(live_mod, "UnsubscribeBookDeltas", object))
         setattr(data_parent, "messages", msg_sub)
         sys.modules["nautilus_trader.data"] = data_parent
         sys.modules["nautilus_trader.data.messages"] = msg_sub
