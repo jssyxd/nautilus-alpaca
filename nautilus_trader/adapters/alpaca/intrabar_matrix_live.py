@@ -208,22 +208,30 @@ class IntraBarMatrixStrategy(Strategy):
 
                 if qty > 0:
                     inst_id = bar.bar_type.instrument_id
-                    order = self.order_factory.limit(
-                        instrument_id=inst_id,
-                        order_side=OrderSide.BUY,
-                        price=Price.from_str(f"{limit_px:.2f}"),
-                        quantity=Quantity.from_str(f"{qty:.4f}" if "BTC" in sym else f"{int(qty)}"),
-                        time_in_force=TimeInForce.GTC,
-                    )
-                    self.submit_order(order)
+                    qty_str = f"{qty:.4f}" if "BTC" in sym else f"{int(qty)}"
                     self.active_positions[sym] = {
                         "limit_px": limit_px,
-                        "qty": qty,
+                        "qty": float(qty_str),
                         "atr": atr,
                         "entry_bar": len(bars),
-                        "status": "SUBMITTED"
+                        "status": "SUBMITTED",
+                        "order_id": None,
                     }
-                    self.log.info(f"[{sym}] Placed limit buy at ${limit_px:.2f}, Qty={qty:.4f}, Bucket Equity=${current_bucket_val:,.2f}")
+                    if hasattr(self, "order_factory") and self.order_factory is not None:
+                        order = self.order_factory.limit(
+                            instrument_id=inst_id,
+                            order_side=OrderSide.BUY,
+                            price=Price.from_str(f"{limit_px:.2f}"),
+                            quantity=Quantity.from_str(qty_str),
+                            time_in_force=TimeInForce.GTC,
+                        )
+                        self.submit_order(order)
+                    
+                    # Notify external runner callback if registered
+                    if hasattr(self, "on_signal_callback") and self.on_signal_callback:
+                        self.on_signal_callback(sym, "buy", limit_px, float(qty_str), atr)
+
+                    self.log.info(f"[{sym}] Signal triggered: Limit Buy @ ${limit_px:.2f}, Qty={qty_str}, Bucket Equity=${current_bucket_val:,.2f}")
 
     def on_order_filled(self, event):
         """
@@ -332,6 +340,7 @@ class AlpacaMatrixLiveRunner:
         strat_cfg = IntraBarMatrixConfig(account_partition=self.account_partition)
         self.strategy = IntraBarMatrixStrategy(strat_cfg)
         self.strategy.initial_total_equity = initial_equity
+        self.strategy.on_signal_callback = self._on_strategy_signal
 
         for target in TARGET_MATRIX:
             sym = target.symbol
@@ -387,6 +396,33 @@ class AlpacaMatrixLiveRunner:
         logger.info("Node fully operational with 24/7 Crypto + Equity streams. Entering event loop...")
         while self.is_running:
             await asyncio.sleep(1.0)
+
+    def _on_strategy_signal(self, symbol: str, side: str, limit_price: float, qty: float, atr: float):
+        """Receives signal from strategy and schedules asynchronous order submission to Alpaca REST API."""
+        asyncio.create_task(self._submit_live_limit_order(symbol, side, limit_price, qty, atr))
+
+    async def _submit_live_limit_order(self, symbol: str, side: str, limit_price: float, qty: float, atr: float):
+        try:
+            logger.info(f"📤 [ORDER DISPATCH] Submitting {side.upper()} Limit for {symbol} | Price=${limit_price:.2f} | Qty={qty}")
+            order_req = {
+                "symbol": symbol,
+                "qty": str(qty),
+                "side": side.lower(),
+                "type": "limit",
+                "limit_price": f"{limit_price:.2f}",
+                "time_in_force": "gtc",
+            }
+            raw = await self.http_client.post("/v2/orders", data=order_req)
+            resp = msgspec.json.decode(raw)
+            order_id = resp.get("id")
+            pos = self.strategy.active_positions.get(symbol)
+            if pos:
+                pos["order_id"] = order_id
+            self.order_to_symbol[order_id] = symbol
+            logger.info(f"  ✓ [DISPATCH SUCCESS] VenueOrderId={order_id} | Status={resp.get('status')}")
+        except Exception as e:
+            logger.error(f"  ✗ [DISPATCH ERROR] Failed to submit order for {symbol}: {e}")
+            self.strategy.active_positions[symbol] = None
 
     async def _handle_trade_update(self, data: dict):
         """
