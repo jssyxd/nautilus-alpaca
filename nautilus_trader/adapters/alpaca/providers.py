@@ -31,8 +31,18 @@ from nautilus_trader.adapters.alpaca.common.enums import AlpacaAssetClass
 from nautilus_trader.adapters.alpaca.schemas.asset import AlpacaAsset
 from nautilus_trader.adapters.alpaca.schemas.option import AlpacaOptionContract
 from nautilus_trader.adapters.alpaca.schemas.option import AlpacaOptionContractsResponse
-from nautilus_trader.common.providers import InstrumentProvider
-from nautilus_trader.config import InstrumentProviderConfig
+try:
+    from nautilus_trader.common.providers import InstrumentProvider
+except ImportError:
+    from nautilus_trader.live import InstrumentProvider
+
+try:
+    from nautilus_trader.config import InstrumentProviderConfig
+except ImportError:
+    try:
+        from nautilus_trader.live import InstrumentProviderConfig
+    except ImportError:
+        InstrumentProviderConfig = object
 from nautilus_trader.core.correctness import PyCondition
 from nautilus_trader.model.currencies import USD
 from nautilus_trader.model.enums import AssetClass
