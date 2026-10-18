@@ -60,14 +60,36 @@ TARGET_MATRIX: List[TargetAssetRule] = [
 ]
 
 
-class IntraBarMatrixConfig(StrategyConfig, frozen=True):
-    account_partition: float = 0.20  # Exactly 1/5 capital per asset
-    risk_per_trade: float = 0.01     # 1% risk per trade within its 1/5 bucket
-    max_leverage: float = 2.0        # Max 2x leverage to avoid margin liquidation
-    limit_pullback_pct: float = 0.002 # 0.2% limit pullback for passive entry
-    atr_sl_mult: float = 1.2         # 1.2 * ATR stop loss
-    atr_tp_mult: float = 2.4         # 2.4 * ATR take profit
-    max_hold_macro_bars: int = 12    # Time-stop after 12 bars
+try:
+    class IntraBarMatrixConfig(StrategyConfig, frozen=True):
+        account_partition: float = 0.20
+        risk_per_trade: float = 0.01
+        max_leverage: float = 2.0
+        limit_pullback_pct: float = 0.002
+        atr_sl_mult: float = 1.2
+        atr_tp_mult: float = 2.4
+        max_hold_macro_bars: int = 12
+except TypeError:
+    class IntraBarMatrixConfig(StrategyConfig):
+        def __init__(
+            self,
+            account_partition: float = 0.20,
+            risk_per_trade: float = 0.01,
+            max_leverage: float = 2.0,
+            limit_pullback_pct: float = 0.002,
+            atr_sl_mult: float = 1.2,
+            atr_tp_mult: float = 2.4,
+            max_hold_macro_bars: int = 12,
+            **kwargs,
+        ):
+            super().__init__(**kwargs)
+            self.account_partition = account_partition
+            self.risk_per_trade = risk_per_trade
+            self.max_leverage = max_leverage
+            self.limit_pullback_pct = limit_pullback_pct
+            self.atr_sl_mult = atr_sl_mult
+            self.atr_tp_mult = atr_tp_mult
+            self.max_hold_macro_bars = max_hold_macro_bars
 
 
 class IntraBarMatrixStrategy(Strategy):
