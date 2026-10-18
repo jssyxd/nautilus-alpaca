@@ -6,9 +6,11 @@ import types
 import nautilus_trader.model as m
 
 # Submodules consolidated into nautilus_trader.model in 2.x
-for sub in ["identifiers", "enums", "objects", "data", "instruments"]:
+for sub in ["identifiers", "enums", "objects", "data", "instruments", "currencies"]:
     full_name = f"nautilus_trader.model.{sub}"
-    if full_name not in sys.modules:
+    try:
+        __import__(full_name)
+    except ImportError:
         mod = types.ModuleType(full_name)
         for attr in dir(m):
             setattr(mod, attr, getattr(m, attr))
